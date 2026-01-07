@@ -1,4 +1,4 @@
-%% rest of the code
+%% main code
 clc
 clear 
 close all
@@ -15,12 +15,15 @@ figure(1)
 subplot(2,1,1); plot(id_X); title('ID input'); grid on;
 subplot(2,1,2); plot(id_Y); title('ID output'); grid on;
 
+figure(2)
+subplot(2,1,1); plot(val_X); title('VAL input'); grid on;
+subplot(2,1,2); plot(val_Y); title('VAL output'); grid on;
+
 na_range = 1:3;
 m_range = 1:3;
 
-results = []; %to store na, m, mse_min_val and mse_pred_val
+results = []; %to store na, m, and all the mses
 cnt = 0;
-total_iter = length(na_range) * length(m_range);
 
 for na = na_range
     nb=na;
@@ -58,7 +61,7 @@ y_pred_val_best = predict_narx(val_X, val_Y, theta_best, exponents_best, best_na
 y_sim_id_best = predict_narx(id_X, id_Y, theta_best, exponents_best, best_na, best_na, 'simulation');
 y_pred_id_best = predict_narx(id_X, id_Y, theta_best, exponents_best, best_na, best_na, 'prediction');
 
-figure(2)
+figure(3)
 plot(results(:,3), 'b--s'); hold on; 
 plot(results(:,4), 'r--d'); 
 plot(results(:,5), 'b-o');
@@ -67,7 +70,7 @@ legend('MSE Sim ID', 'MSE Pred ID', 'MSE Sim VAL', 'MSE Pred VAL');
 title('Error Comparison');
 
 % simulation plot
-figure(3)
+figure(4)
 start_p = best_na + 1;
 subplot(2,1,1);
 plot(id_Y(start_p:end), 'k'); hold on; plot(y_sim_id_best(start_p:end), 'r--');
@@ -77,9 +80,9 @@ plot(val_Y(start_p:end), 'k'); hold on; plot(y_sim_val_best(start_p:end), 'r--')
 legend('Real-VAL', 'Sim-VAL'); title('Simulation on VAL Data'); grid on;
 
 % prediction plot
-figure(4)
+figure(5)
 subplot(2,1,1);
-plot(id_Y(start_p:end), 'k'); hold on; plot(y_pred_id_best(start_p:end), 'g--', 'LineWidth', 1);
+plot(id_Y(start_p:end), 'k'); hold on; plot(y_pred_id_best(start_p:end), 'g--');
 legend('Real-ID', 'Pred-ID'); title('Prediction on ID Data'); grid on;
 subplot(2,1,2);
 plot(val_Y(start_p:end), 'k'); hold on; plot(y_pred_val_best(start_p:end), 'g--');
@@ -88,10 +91,10 @@ legend('Real-VAL', 'Pred-VAL'); title('Prediction on VAL Data'); grid on;
 %% important functions
 function [theta, exponents] = train_narx(u, y, na, nb, m)
     N = length(y);
-    n_vars = na + nb;
+    n_variables = na + nb;
 
-    exponents = get_exp(n_vars, m);
-
+    exponents = get_exp(n_variables, m);
+    
     start_k = max(na, nb) + 1;
     num_samples = N - start_k + 1;
     num_regressors = size(exponents, 1);
@@ -104,9 +107,9 @@ function [theta, exponents] = train_narx(u, y, na, nb, m)
         past_y = y(k-1:-1:k-na)';
         past_u = u(k-1:-1:k-nb)';
         
-        vars = [past_y, past_u];
+        variables = [past_y, past_u];
 
-        Phi(idx, :) = calculate_poly(vars, exponents);
+        Phi(idx, :) = calculate_poly(variables, exponents);
         idx = idx + 1;
     end
     theta = Phi\target;
@@ -126,9 +129,9 @@ function y_out = predict_narx(u, y, theta, exponents, na, nb, sim_type)
             past_y = y(k-1:-1:k-na)';
         end
         past_u = u(k-1:-1:k-nb)';
-        vars = [past_y, past_u];
+        variables = [past_y, past_u];
         
-        phi_row = calculate_poly(vars, exponents);
+        phi_row = calculate_poly(variables, exponents);
         y_out(k) = phi_row * theta;
     end
 end
@@ -138,11 +141,11 @@ function row = calculate_poly(x, exponents)
     row = prod(term_matrix, 2)';
 end
 
-function exps = get_exp(n_vars, max_deg)
-    if n_vars == 1
+function exps = get_exp(n_variables, max_deg)
+    if n_variables == 1
         exps = (0:max_deg)';
     else
-        sub_exps = get_exp(n_vars-1, max_deg);
+        sub_exps = get_exp(n_variables-1, max_deg);
         exps = [];
         for i = 1:size(sub_exps, 1)
             current_sum = sum(sub_exps(i,:));
